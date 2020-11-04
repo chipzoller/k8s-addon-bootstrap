@@ -22,6 +22,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: cluster-build
+  namespace: default
 type: Opaque
 data:
   gitrepo: <insert_base64_encoded_git_repo_URL_here>
@@ -30,6 +31,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: cluster-build
+  namespace: default
 spec:
   template:
     spec:
