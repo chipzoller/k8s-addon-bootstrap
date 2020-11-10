@@ -1,4 +1,4 @@
-#! Addons file for TKG.
+#! Addons file for TKG. See https://neonmirrors.net/post/2020-11/k8s-cluster-addon-bootstrapping-for-tkg/ for details and usage instructions.
 
 #@ load("@ytt:overlay", "overlay")
 #@ load("@ytt:data", "data")
