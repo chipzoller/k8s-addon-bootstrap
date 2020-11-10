@@ -1,0 +1,89 @@
+#! Addons file for TKG.
+
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+
+#@ def cluster_addons():
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-build
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-build
+subjects:
+- kind: ServiceAccount
+  name: cluster-build
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-build
+  namespace: default
+type: Opaque
+data:
+  gitrepo: <base64_encoded_git_repo_URL_goes_here>
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cluster-build
+  namespace: default
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: cluster-build-apply
+        image: chipzoller/k8s-addon-bootstrap:latest
+        command: ["/bin/sh"]
+        args: ["-c", "git clone $(GIT_REPO) manifests/ && kubectl apply -f manifests/ -R"]
+        env:
+        - name: GIT_REPO
+          valueFrom:
+            secretKeyRef:
+              name: cluster-build
+              key: gitrepo
+      containers:
+      - name: cluster-build-cleanup
+        image: chipzoller/k8s-addon-bootstrap:latest
+        command: ["kubectl", "delete", "secrets/cluster-build"]
+      restartPolicy: Never
+      serviceAccountName: cluster-build
+#@ end
+
+#@ if data.values.TKG_CLUSTER_ROLE == "workload" and data.values.CLUSTER_PLAN == "dev":
+
+---
+apiVersion: addons.cluster.x-k8s.io/v1alpha3
+kind: ClusterResourceSet
+metadata:
+  name: #@ "{}-cluster-addons".format(data.values.CLUSTER_NAME)
+  labels:
+    cluster.x-k8s.io/cluster-name: #@ data.values.CLUSTER_NAME
+spec:
+  strategy: "ApplyOnce"
+  clusterSelector:
+    matchLabels:
+      tkg.tanzu.vmware.com/cluster-name: #@ data.values.CLUSTER_NAME
+  resources:
+  - name: #@ "{}-cluster-addons".format(data.values.CLUSTER_NAME)
+    kind: ConfigMap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: #@ "{}-cluster-addons".format(data.values.CLUSTER_NAME)
+data:
+  value: #@ yaml.encode(cluster_addons())
+
+#@ end
