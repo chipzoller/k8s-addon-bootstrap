@@ -46,7 +46,7 @@ spec:
       - name: cluster-build-apply
         image: chipzoller/k8s-addon-bootstrap:latest
         command: ["/bin/sh"]
-        args: ["-c", "git clone $(GIT_REPO) manifests/ && kubectl apply -f manifests/ -R"]
+        args: ["-c", "git clone $(GIT_REPO) manifests/; for dir in manifests/*; do echo Applying manifests from $dir; kubectl apply -f $dir -R; sleep 10; done"]
         env:
         - name: GIT_REPO
           valueFrom:
